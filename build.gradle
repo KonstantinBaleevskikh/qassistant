@@ -1,0 +1,63 @@
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'org.springframework.boot' version '3.2.0'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+compileJava.options.encoding = "UTF-8"
+compileTestJava.options.encoding = "UTF-8"
+
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.spring.io/snapshot' }
+}
+
+
+ext {
+    registry_prometheus_version = '1.12.3'
+    okhttp_version = '4.12.0'
+    slack_bolt_version = '1.38.1'
+    jackson_dataformat_yaml_version = '2.16.1'
+    springdoc_version = '2.5.0'
+    github_api_version = '1.319'
+    spring_ai_version = '0.8.1-SNAPSHOT'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation "org.springframework.ai:spring-ai-openai:${spring_ai_version}"
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
+    implementation "org.springframework.ai:spring-ai-neo4j-store:${spring_ai_version}"
+    implementation 'org.springdoc:springdoc-openapi-ui:1.8.0'
+    implementation 'org.springdoc:springdoc-openapi-core:1.1.49'
+    implementation "org.springdoc:springdoc-openapi-starter-common:${springdoc_version}"
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    implementation "org.kohsuke:github-api:${github_api_version}"
+
+    api 'org.springframework.boot:spring-boot-starter-web'
+    api "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdoc_version}"
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+

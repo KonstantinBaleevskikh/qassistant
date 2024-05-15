@@ -1,0 +1,15 @@
+package com.qassistant.context.entities;
+
+public enum StyleWithContext {
+    CODE_CONTEXT(new SystemMessage(" Context sections:\n\n %s\n\n \"'\nUse the context provided to answer the question below as accurately as possible.\nWhen generating code, use the same code and style as in the given context.", "\u041a\u043e\u043d\u0442\u0435\u043a\u0441\u0442:\n\n %s\n\n\"'\n \u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 \u043f\u0440\u0435\u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0439 \u043a\u043e\u043d\u0442\u0435\u043a\u0441\u0442, \u0447\u0442\u043e\u0431\u044b \u043a\u0430\u043a \u043c\u043e\u0436\u043d\u043e \u0431\u043e\u043b\u0435\u0435 \u0442\u043e\u0447\u043d\u043e \u043e\u0442\u0432\u0435\u0442\u0438\u0442\u044c \u043d\u0430 \u0432\u043e\u043f\u0440\u043e\u0441 \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0434\u0430\u043b\u0435\u0435.\n \u041f\u0440\u0438 \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0438\u0438 \u043a\u043e\u0434\u0430, \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 \u0442\u043e\u0442 \u0436\u0435 \u043a\u043e\u0434 \u0438 \u0441\u0442\u0438\u043b\u044c \u0447\u0442\u043e \u0438 \u0432 \u043f\u0440\u0438\u0432\u0435\u0434\u0435\u043d\u043d\u043e\u043c \u043a\u043e\u043d\u0442\u0435\u043a\u0441\u0442\u0435."));
+
+    private final SystemMessage systemMessage;
+
+    private StyleWithContext(SystemMessage systemMessage) {
+        this.systemMessage = systemMessage;
+    }
+
+    public SystemMessage getSystemMessage() {
+        return this.systemMessage;
+    }
+}

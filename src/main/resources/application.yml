@@ -1,0 +1,102 @@
+server:
+  port: 8081
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+spring:
+  main:
+    banner-mode: "off"
+  profiles:
+    active: prod
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  neo4j:
+    uri: bolt://localhost:7687
+    embedding-dimension: 1536
+    label: Document
+    distance-type: cosine
+    embedding-property: "embedding"
+    index-name: "spring-ai-document-index"
+    authentication:
+      username: neo4j
+      password: verysecret
+springdoc:
+  swagger-ui:
+    path: /api-docs
+management:
+  endpoints:
+    web:
+      base-path: /monitoring
+      exposure:
+        include: "*"
+  endpoint:
+    prometheus:
+      enabled: true
+application:
+  gpt:
+    secretKey: "ADD_YOUR_SECRET"
+    embeddingsModel: "text-embedding-3-small"
+    chatModel: "gpt-4-turbo-preview"
+    maxTokens: 4096
+    chatContextLength: 7000000
+  github:
+    token: "ADD_YOUR_TOKEN"
+    userName: "ADD_YOUR_USERNAME"
+  context:
+    contextEntries: 50
+    sourceMaxTokqen: 7000
+    ignorePatterns:
+      - "*.bin"
+      - "*.o"
+      - "*.so"
+      - "*.lib"
+      - "*.dll"
+      - "*.exe"
+      - "*.class"
+      - "*.jar"
+      - "package-lock.json"
+      - "*.lock"
+      - "*.rtb"
+      - "*.pdf"
+      - "*.ppt"
+      - "*.pptx"
+      - "*.odt"
+      - "*.odp"
+      - "*.ods"
+      - "*.cpgz"
+      - "*.psd"
+      - "*.vsdx"
+      - "*.log"
+      - "*.png"
+      - "*.jpg"
+      - "*.jpeg"
+      - "*.gif"
+      - "*.csv"
+      - "*.svg"
+      - "*.bmp"
+      - "*.tiff"
+      - "*.xlsx"
+      - "*.xls"
+      - "*.doc"
+      - "*.docx"
+      - "*.eslintignore"
+      - "*.npmrc"
+      - "*.nvmrc"
+      - "bin"
+      - "node_modules"
+      - "allure-results"
+      - "build"
+      - "output"
+  slack:
+    botToken: "*"
+    signingSecret: "*"
+    appToken: "*"
+  bot: slack
+  meter:
+    url: "https://vminsert.qa-svc.testmiro.com/insert/0/prometheus/api/v1/import/prometheus"
+logging:
+  file:
+    name: "logs/imbaLog.log"
+  level:
+    root: info
