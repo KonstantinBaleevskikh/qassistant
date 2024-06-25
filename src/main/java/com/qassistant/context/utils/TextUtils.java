@@ -2,6 +2,10 @@ package com.qassistant.context.utils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TextUtils {
 
@@ -41,5 +45,49 @@ public class TextUtils {
     public static boolean containsCyrillic(String input) {
         return input.chars().mapToObj(c -> Character.UnicodeBlock.of((char) c))
                 .anyMatch(ub -> ub.equals(Character.UnicodeBlock.CYRILLIC));
+    }
+
+    public static List<String> splitTextWithMarkdown(String text, int size) {
+        if (text.length() <= size) return List.of(text);
+        List<String> parts = new ArrayList<>();
+        String codeBlockPattern = "(```\\w+)|(```)";
+        Pattern pattern = Pattern.compile(codeBlockPattern);
+        Matcher matcher = pattern.matcher(text);
+
+        StringBuilder currentPart = new StringBuilder();
+        boolean isInCodeBlock = false;
+        String currentCodeTag = "";
+
+        for (int i = 0, len = text.length(); i < len; i++) {
+            if (matcher.find(i) && matcher.start() == i) {
+                if (!isInCodeBlock) {
+                    currentCodeTag = matcher.group();
+                    isInCodeBlock = true;
+                    currentPart.append(currentCodeTag).append(" ");
+                    i += currentCodeTag.length() - 1;
+                } else {
+                    isInCodeBlock = false;
+                    currentPart.append(text.charAt(i));
+                }
+                continue;
+            }
+            if (currentPart.length() < size || isInCodeBlock) {
+                currentPart.append(text.charAt(i));
+            }
+            if (currentPart.length() == size || (i + 1 == len && !currentPart.isEmpty())) {
+                if (isInCodeBlock) {
+                    currentPart.append("```");
+                }
+                parts.add(currentPart.toString());
+                currentPart.setLength(0);
+                if (isInCodeBlock && i + 1 < len) {
+                    currentPart.append(currentCodeTag).append(" ");
+                }
+            }
+        }
+        if (!currentPart.isEmpty()) {
+            parts.add(currentPart.toString());
+        }
+        return parts;
     }
 }
