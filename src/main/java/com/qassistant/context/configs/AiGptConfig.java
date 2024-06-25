@@ -22,6 +22,7 @@ public class AiGptConfig {
     private String chatModel;
     private Integer maxTokens;
     private Integer chatContextLength;
+    private Integer diffThreshold;
 
     public void setSecretKey(String secretKey) {
         this.secretKey = secretKey;
@@ -63,6 +64,14 @@ public class AiGptConfig {
         this.chatContextLength = chatContextLength;
     }
 
+    public Integer getDiffThreshold() {
+        return Optional.ofNullable(this.diffThreshold).orElse(100); // Default value can be adjusted as needed
+    }
+
+    public void setDiffThreshold(Integer diffThreshold) {
+        this.diffThreshold = diffThreshold;
+    }
+    
     @Bean
     @ConditionalOnMissingBean
     public OpenAiApi getAiApi() {

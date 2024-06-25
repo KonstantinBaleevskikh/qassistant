@@ -5,6 +5,7 @@ import com.qassistant.context.db.dbEntity.Project;
 import com.qassistant.context.entities.ChunkResult;
 import com.qassistant.context.entities.Context;
 import com.qassistant.context.entities.FileChunk;
+import com.qassistant.context.services.EmbeddingGptService;
 import com.qassistant.context.utils.TextUtils;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,6 +23,7 @@ import org.neo4j.driver.summary.ResultSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
@@ -41,12 +43,13 @@ public class VectorDbService implements DbService {
     private static final Logger logger = LoggerFactory.getLogger(VectorDbService.class);
     private final VectorStore vectorStore;
     private final Driver neo4jDriver;
+    private final EmbeddingGptService embeddingGptService;
 
-    public VectorDbService(VectorStore vectorStore, Driver neo4jDriver) {
+    public VectorDbService(VectorStore vectorStore, Driver neo4jDriver, EmbeddingGptService embeddingGptService) {
         this.vectorStore = vectorStore;
         this.neo4jDriver = neo4jDriver;
+        this.embeddingGptService = embeddingGptService;
     }
-
 
     @Override
     public Project saveProject(Project project) {
@@ -283,7 +286,7 @@ public class VectorDbService implements DbService {
             return Collections.emptyMap();
         }
 
-        indexAndLinkDocuments(projectId, fileDocumentMap);
+        processFilesAndDocuments(projectId, fileDocumentMap);
         logger.info("Classification indexed for project ID: {}", projectId);
         return promptsAndAnswers;
     }
@@ -294,17 +297,16 @@ public class VectorDbService implements DbService {
             throw new IllegalArgumentException("fileChunks size should be more than 0");
         }
 
-        String projectId = chunkResult.fileChunks().get(0).projectId();
-        Map<File, List<Document>> fileDocumentMap = indexDocumentsFromChunks(projectId, chunkResult.fileChunks());
-        fileDocumentMap = filterAndUpdateDocumentMap(projectId, fileDocumentMap);
+        String projectId = chunkResult.projectId();
+        Map<File, List<Document>> initialFileDocumentMap = this.indexDocumentsFromChunks(projectId, chunkResult.fileChunks());
+        Map<File, List<Document>> filteredFileDocumentMap = this.filterAndUpdateDocumentMap(projectId, initialFileDocumentMap);
 
-        if (fileDocumentMap.isEmpty()) {
-            logger.warn("No documents were indexed from chunks for project ID: {}", projectId);
-            return Collections.emptyList();
+        // If there are still entries after filtering, process them further.
+        if (!filteredFileDocumentMap.isEmpty()) {
+            this.processFilesAndDocuments(projectId, filteredFileDocumentMap);
         }
 
-        indexAndLinkDocuments(projectId, fileDocumentMap);
-        logger.info("Chunk results indexed for project ID: {}", projectId);
+        // Return the paths of all file chunks processed.
         return chunkResult.fileChunks().stream()
                 .map(FileChunk::filePath)
                 .collect(Collectors.toList());
@@ -312,10 +314,19 @@ public class VectorDbService implements DbService {
 
     @Override
     public List<Context> findContext(String projectId, String prompt, int contextEntries) {
-        Project project2 = this.findProjectById(projectId).orElseGet(() -> this.findProjectByName(projectId).orElseThrow(() -> new RuntimeException("There is no such project")));
+        Project project = this.findProjectById(projectId).orElseGet(()
+                -> this.findProjectByName(projectId).orElseThrow(()
+                -> new RuntimeException("There is no such project")));
         FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder();
-        List<Document> list = vectorStore.similaritySearch(SearchRequest.defaults().withQuery(prompt).withTopK(contextEntries).withFilterExpression(filterExpressionBuilder.or(filterExpressionBuilder.eq("projectName", (Object)project2.getName()), filterExpressionBuilder.eq("projectId", (Object)project2.getId())).build()));
-        List<Context> contexts;  // Collecting the results into a list
+        List<Document> list = vectorStore.similaritySearch(SearchRequest.defaults()
+                .withQuery(prompt)
+                .withTopK(contextEntries)
+                .withFilterExpression(filterExpressionBuilder
+                        .or(filterExpressionBuilder.eq("projectName", project.getName()),
+                                filterExpressionBuilder.eq("projectId", project.getId())).build()));
+
+        List<Context> contexts;
+
         contexts = list.stream()
                 .map(document -> {
                     String answer = Optional.ofNullable(document.getMetadata().get("answer"))
@@ -330,17 +341,15 @@ public class VectorDbService implements DbService {
                             .map(Double::parseDouble)
                             .orElse(0.0);
 
-                    // Calculate the adjusted distance by subtracting the weight
                     double adjustedDistance = distance - weight;
 
                     return new Context(adjustedDistance, answer, document.getId(), weight);
                 })
-                .sorted(Comparator.comparing(Context::getDistance))  // Sorting by the distance field
+                .sorted(Comparator.comparing(Context::getDistance))
                 .collect(Collectors.toList());
 
         return contexts;
     }
-
 
     private Map<File, List<Document>> indexDocumentsFromChunks(String projectId, List<FileChunk> fileChunks) {
         Project project = findProjectById(projectId)
@@ -362,6 +371,70 @@ public class VectorDbService implements DbService {
         return fileDocumentsMap;
     }
 
+    /**
+     * Processes the given file list map to asynchronously add documents and links them in the database.
+     *
+     * @param projectId the ID of the project under which the files are categorized.
+     * @param fileListMap a map where each file is associated with a list of documents to process.
+     */
+    private void processFilesAndDocuments(String projectId, Map<File, List<Document>> fileListMap) {
+        for (Map.Entry<File, List<Document>> entry : fileListMap.entrySet()) {
+            File file = createFileNode(entry.getKey());
+            List<Document> documents = entry.getValue();
+            int batchSize = Math.max(1, documents.size() / Runtime.getRuntime().availableProcessors());
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+            // Process documents in batches asynchronously
+            for (int i = 0; i < documents.size(); i += batchSize) {
+                int end = Math.min(i + batchSize, documents.size());
+                List<Document> batchDocuments = documents.subList(i, end);
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> this.vectorStore.add(batchDocuments));
+                futures.add(future);
+            }
+
+            CompletableFuture<Void> allTasks = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+            waitForCompletion(allTasks);
+
+            if (!documents.isEmpty()) {
+                linkDocumentsToProject(projectId, file, documents);
+            }
+        }
+    }
+
+    /**
+     * A helper method to wait for all futures to complete.
+     * @param allTasks CompletableFuture representing all tasks.
+     */
+    private void waitForCompletion(CompletableFuture<Void> allTasks) {
+        try {
+            allTasks.get();
+        } catch (ExecutionException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Failed to complete async document processing tasks", e);
+        }
+    }
+
+    /**
+     * Links documents to a project and file in the database.
+     * @param projectId the project ID.
+     * @param file the file under which documents are categorized.
+     * @param documents list of documents to link.
+     */
+    private void linkDocumentsToProject(String projectId, File file, List<Document> documents) {
+        List<String> documentIds = documents.stream().map(Document::getId).toList();
+        if (!documentIds.isEmpty()) {
+            try (Session session = this.neo4jDriver.session()) {
+                String cypher = "MATCH (p:Project {id: $projectId}), (f:File {id: $fileId}) " +
+                        "CREATE (p)-[:HAS]->(f) " +
+                        "WITH p, f " +
+                        "MATCH (n:Document {id: $ids}) " +
+                        "CREATE (f)-[:HAS]->(n)";
+                session.run(cypher, Map.of("projectId", projectId, "fileId", file.getId(), "ids", documentIds));
+            } catch (Exception e) {
+                throw new RuntimeException("Error linking documents to file and project in the database", e);
+            }
+        }
+    }
 
     private Map<File, List<Document>> indexPromptBasedDocuments(Project project, Map<String, String> prompts, String filePath) {
         List<Document> documents = new ArrayList<>();
@@ -384,55 +457,6 @@ public class VectorDbService implements DbService {
 
         File file = new File(project, checksum, filePath);
         return Map.of(file, documents);
-    }
-
-
-    private void indexAndLinkDocuments(String projectId, Map<File, List<Document>> fileDocumentsMap) {
-        for (Map.Entry<File, List<Document>> entry : fileDocumentsMap.entrySet()) {
-            File file = createFileNode(entry.getKey());
-            List<Document> documents = entry.getValue();
-
-            // Calculate the number of documents to handle per thread based on available processors
-            int batchSize = Math.max(1, documents.size() / Runtime.getRuntime().availableProcessors());
-
-            // Handle documents in parallel batches
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            for (int i = 0; i < documents.size(); i += batchSize) {
-                int end = Math.min(i + batchSize, documents.size());
-                List<Document> batch = documents.subList(i, end);
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> vectorStore.add(batch));
-                futures.add(future);
-            }
-
-            // Wait for all futures to complete
-            CompletableFuture<Void> allFutures = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-            try {
-                allFutures.get();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Thread was interrupted during document addition", e);
-            } catch (ExecutionException e) {
-                throw new RuntimeException("Error adding documents to vector store", e.getCause());
-            }
-
-            // Link documents to the file node in Neo4j
-            linkDocumentsToFile(projectId, file, documents);
-        }
-    }
-
-    private void linkDocumentsToFile(String projectId, File file, List<Document> documents) {
-        List<String> documentIds = documents.stream().map(Document::getId).toList();
-        if (!documentIds.isEmpty()) {
-            try (Session session = neo4jDriver.session()) {
-                String cypher = "MATCH (p:Project {id: $projectId}), (f:File {id: $fileId}) " +
-                        "FOREACH (docId IN $docIds | " +
-                        "   MERGE (d:Document {id: docId}) " +
-                        "   MERGE (f)-[:CONTAINS]->(d))";
-                session.run(cypher, Map.of("projectId", projectId, "fileId", file.getId(), "docIds", documentIds));
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to link documents to file in Neo4j", e);
-            }
-        }
     }
 
     private Map<File, List<Document>> filterAndUpdateDocumentMap(String projectId, Map<File, List<Document>> fileDocumentMap) {

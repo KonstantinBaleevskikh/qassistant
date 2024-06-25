@@ -14,18 +14,36 @@ import jakarta.persistence.Table;
 import java.util.Set;
 
 @Entity
-@Table(name="file", indexes={@Index(name="idx_project", columnList="projectId")})
+@Table(
+        name = "file",
+        indexes = {@Index(
+                name = "idx_project",
+                columnList = "projectId"
+        )}
+)
 public class File {
     @Id
-    @GeneratedValue(strategy=GenerationType.UUID)
+    @GeneratedValue(
+            strategy = GenerationType.UUID
+    )
     private String id;
-    @ManyToOne(fetch=FetchType.LAZY)
-    @JoinColumn(name="projectId", nullable=false)
+    @ManyToOne(
+            fetch = FetchType.LAZY
+    )
+    @JoinColumn(
+            name = "projectId",
+            nullable = false
+    )
     private Project project;
     private String path;
     private String name;
     private String checksum;
-    @OneToMany(fetch=FetchType.LAZY, mappedBy="file", cascade={CascadeType.ALL}, orphanRemoval=true)
+    @OneToMany(
+            fetch = FetchType.LAZY,
+            mappedBy = "file",
+            cascade = {CascadeType.ALL},
+            orphanRemoval = true
+    )
     private Set<FileSection> sections;
 
     public File() {
@@ -59,10 +77,7 @@ public class File {
     }
 
     public String getName() {
-        if (this.path != null && !this.path.isEmpty()) {
-            return new java.io.File(this.path).getName();
-        }
-        return this.name;
+        return this.path != null && !this.path.isEmpty() ? (new java.io.File(this.path)).getName() : this.name;
     }
 
     public String getPath() {

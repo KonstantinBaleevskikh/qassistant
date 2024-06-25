@@ -87,6 +87,6 @@ public class FileContextService extends AbstractContextService {
             }
         }
 
-        return new ChunkResult(fileChunks, indexedCount, skippedCount);
+        return new ChunkResult(projectId, fileChunks, indexedCount, skippedCount);
     }
 }

@@ -44,7 +44,7 @@ public class GithubContextService extends AbstractContextService {
      * @param path The path within the repository.
      * @return List of indexed strings.
      */
-    public List<String> fetchAndIndexFiles(String projectId, String repoName, String path) {
+    public ChunkResult fetchAndIndexFiles(String projectId, String repoName, String path) {
         Project project = dbService.findProjectById(projectId)
                 .orElseGet(() -> dbService.findProjectByName(projectId)
                         .orElseThrow(() -> new RuntimeException("Project not found: " + projectId)));
@@ -52,8 +52,7 @@ public class GithubContextService extends AbstractContextService {
         try {
             GitHub gitHub = GitHub.connect(githubConfig.getUserName(), githubConfig.getToken());
             GHRepository repository = gitHub.getRepository(repoName);
-            ChunkResult chunkResult = indexRepositoryContents(project.getId(), repository, path, new ArrayList<>());
-            return dbService.indexChunkResult(chunkResult);
+            return indexRepositoryContents(project.getId(), repository, path, new ArrayList<>());
         } catch (Exception e) {
             logger.error("Error processing GitHub repository: {}", repoName, e);
             throw new RuntimeException("Error processing GitHub repository", e);
@@ -97,10 +96,11 @@ public class GithubContextService extends AbstractContextService {
                     skippedCount += result.skipped();
                 }
             }
+
+            return new ChunkResult(projectId, chunks, indexedCount, skippedCount);
         } catch (IOException e) {
             throw new RuntimeException("Failed to access repository contents", e);
         }
-        return new ChunkResult(chunks, indexedCount, skippedCount);
     }
 
     /**

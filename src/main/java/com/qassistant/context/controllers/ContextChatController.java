@@ -14,17 +14,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@Tag(name = "Chat")
-@RequestMapping("/chat")
-@ConditionalOnProperty(prefix = "application.gpt", name = "embeddingsModel")
-@ConditionalOnBean(DbService.class)
+@Tag(name="Chat")
+@RequestMapping(value={"/chat/"})
+@ConditionalOnProperty(prefix="application.gpt", name={"embeddingsModel"})
+@ConditionalOnBean(value={DbService.class})
 public class ContextChatController {
     private final ChatContextService<Message> chatContextService;
 
@@ -32,23 +30,15 @@ public class ContextChatController {
         this.chatContextService = chatContextService;
     }
 
-    @Operation(summary = "Handle Chat Context", description = "Processes a chat context completion request.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "OK")
-    })
-    @PostMapping(path = "/contextChat", produces = "text/plain;charset=UTF-8")
-    public ResponseEntity<Object> handleChatContext(
-            @Parameter(description = "The chat prompt") @RequestParam("prompt") String prompt,
-            @Parameter(description = "Project identifier") @RequestParam("project") String projectId,
-            HttpServletRequest request) {
-
-        SystemMessageContext systemMessageContext = chatContextService.formatSystemMessageWithContext(
-                projectId,
-                StyleWithContext.CODE_CONTEXT.getSystemMessage().message(TextUtils.containsCyrillic(prompt)),
-                prompt
-        );
-        chatContextService.setSystemMessage(systemMessageContext.getSystemMessage(), request.getSession().getId());
-
-        return ResponseEntity.ok(chatContextService.completionChat(prompt, request.getSession().getId()));
+    @Operation(description="Completion simple chat")
+    @ApiResponses(value={@ApiResponse(responseCode="200", description="OK")})
+    @RequestMapping(method={RequestMethod.POST}, path={"/contextChat"}, produces={"text/plain;charset=UTF-8"})
+    public ResponseEntity<Object> contextChat(
+            @Parameter(description="prompt") @RequestParam(value="prompt") String prompt,
+            @Parameter(description="project") @RequestParam(value="project") String project,
+            HttpServletRequest httpServletRequest) {
+        SystemMessageContext systemMessageContext = chatContextService.formatSystemMessageWithContext(project, StyleWithContext.CODE_CONTEXT.getSystemMessage().message(TextUtils.containsCyrillic(prompt)), prompt);
+        chatContextService.setSystemMessage(systemMessageContext.getSystemMessage(), httpServletRequest.getSession().getId());
+        return new ResponseEntity<>(chatContextService.completionChat(prompt, httpServletRequest.getSession().getId()), HttpStatus.OK);
     }
 }

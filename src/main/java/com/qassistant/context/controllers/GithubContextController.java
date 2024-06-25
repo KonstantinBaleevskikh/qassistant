@@ -1,5 +1,7 @@
 package com.qassistant.context.controllers;
 
+import com.qassistant.context.entities.ChunkResult;
+import com.qassistant.context.services.context.ContextService;
 import com.qassistant.context.services.context.GithubContextService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,9 +20,11 @@ import org.springframework.web.bind.annotation.*;
 @ConditionalOnBean(GithubContextService.class)
 public class GithubContextController {
     private final GithubContextService githubContextService;
+    private final ContextService contextService;
 
-    public GithubContextController(GithubContextService githubContextService) {
+    public GithubContextController(GithubContextService githubContextService, ContextService contextService) {
         this.githubContextService = githubContextService;
+        this.contextService = contextService;
     }
 
     @Operation(summary = "Create GitHub Context")
@@ -36,7 +40,7 @@ public class GithubContextController {
             @Parameter(description = "Index path in the repository", required = false)
             @RequestParam(defaultValue = "") String indexPath) {
 
-        Object context = githubContextService.fetchAndIndexFiles(projectId, repositoryName, indexPath);
-        return new ResponseEntity<>(context, HttpStatus.OK);
+        ChunkResult chunkResult = githubContextService.fetchAndIndexFiles(projectId, repositoryName, indexPath);
+        return new ResponseEntity(this.contextService.indexChunkResult(chunkResult), HttpStatus.OK);
     }
 }

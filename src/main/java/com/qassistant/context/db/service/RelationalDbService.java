@@ -182,7 +182,7 @@ public class RelationalDbService implements DbService{
         if (chunkResult.fileChunks().isEmpty()) {
             throw new IllegalArgumentException("fileChunks size should be more than 0");
         }
-        String string = ((FileChunk)chunkResult.fileChunks().get(0)).projectId();
+        String string = chunkResult.projectId();
         this.findProjectById(string).orElseGet(() -> this.findProjectByName(string).orElseThrow(() -> new RuntimeException("There is no such project")));
         Map<FileChunk, Set<FileSection>> map = embeddingService.mapChunksToSections(chunkResult.fileChunks());
         for (Map.Entry entry : map.entrySet()) {

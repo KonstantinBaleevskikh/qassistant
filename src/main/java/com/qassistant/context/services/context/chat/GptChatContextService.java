@@ -15,6 +15,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @ConditionalOnProperty(prefix = "application.gpt", name = "embeddingsModel")
+@Qualifier("default")
 @ConditionalOnBean(DbService.class)
 public class GptChatContextService implements ChatContextService<Message> {
     private final Map<String, List<Message>> userChatContexts = new ConcurrentHashMap<>();
@@ -34,7 +36,7 @@ public class GptChatContextService implements ChatContextService<Message> {
     private final DbService dbService;
     private final ContextConfig contextConfig;
 
-    public GptChatContextService(OpenAiChatClient chatClient, AiGptConfig gptConfig, DbService dbService, ContextConfig contextConfig) {
+    public GptChatContextService(OpenAiChatClient chatClient, AiGptConfig gptConfig, DbService dbService, ContextConfig contextConfig){
         this.chatClient = chatClient;
         this.gptConfig = gptConfig;
         this.dbService = dbService;
@@ -148,5 +150,4 @@ public class GptChatContextService implements ChatContextService<Message> {
         }
         return null; // Return null if no summary is necessary
     }
-
 }
