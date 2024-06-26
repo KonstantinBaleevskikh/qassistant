@@ -1,5 +1,6 @@
 package com.qassistant.context.bots.slack.events;
 
+import com.qassistant.context.bots.configs.ProjectConfig;
 import com.qassistant.context.bots.slack.blocks.AnswerBlock;
 import com.qassistant.context.bots.slack.actions.AiAction;
 import com.slack.api.app_backend.events.payload.EventsApiPayload;
@@ -28,18 +29,29 @@ public class MessageToBotHandler implements BoltEventHandler<MessageEvent> {
     private static final Logger log = LoggerFactory.getLogger(MessageToBotHandler.class);
     private final AnswerBlock block;
     private final AiAction<Message> aiAction;
+    private final ProjectConfig projectConfig;
 
-    public MessageToBotHandler(AnswerBlock block, AiAction<Message> aiAction) {
+    public MessageToBotHandler(AnswerBlock block, AiAction<Message> aiAction, ProjectConfig projectConfig) {
         this.block = block;
         this.aiAction = aiAction;
+        this.projectConfig = projectConfig;
     }
 
     @Override
-    public Response apply(EventsApiPayload<MessageEvent> payload, EventContext ctx) {
+    public Response apply(EventsApiPayload<MessageEvent> payload, EventContext ctx) throws SlackApiException, IOException {
         MessageEvent event = payload.getEvent();
         if ("im".equals(event.getChannelType())) {
             String text = event.getText();
             String userId = event.getUser();
+            if (!projectConfig.isProjectSet(userId)) {
+                String errorMessage = "Please set your project first using the /setproject command.";
+                ctx.client().chatPostMessage(req -> req
+                        .channel(event.getChannel())
+                        .threadTs(event.getTs())
+                        .text(errorMessage)
+                );
+                return Response.ok();
+            }
             CompletableFuture.runAsync(() -> {
                 try {
                     boolean newMessage = event.getThreadTs() == null;

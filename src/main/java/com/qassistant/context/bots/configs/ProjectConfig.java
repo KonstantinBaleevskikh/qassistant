@@ -14,4 +14,8 @@ public class ProjectConfig {
     public String getProjectForUser(String userId) {
         return userProjectMap.getOrDefault(userId, "Qassistant");
     }
+
+    public boolean isProjectSet(String userId) {
+        return userProjectMap.containsKey(userId);
+    }
 }
