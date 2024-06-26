@@ -1,4 +1,4 @@
-package com.qassistant.context.services.slack.actions;
+package com.qassistant.context.bots.slack.actions;
 
 import com.slack.api.bolt.context.Context;
 import com.slack.api.bolt.response.Response;

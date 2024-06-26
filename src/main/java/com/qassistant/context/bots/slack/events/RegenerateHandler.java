@@ -1,10 +1,10 @@
-package com.qassistant.context.services.slack.events;
+package com.qassistant.context.bots.slack.events;
 
 
-import com.qassistant.context.services.slack.SlackBot;
-import com.qassistant.context.services.slack.actions.AiAction;
-import com.qassistant.context.services.slack.actions.EventAction;
-import com.qassistant.context.services.slack.blocks.AnswerBlock;
+import com.qassistant.context.bots.slack.SlackBot;
+import com.qassistant.context.bots.slack.actions.AiAction;
+import com.qassistant.context.bots.slack.actions.EventAction;
+import com.qassistant.context.bots.slack.blocks.AnswerBlock;
 import com.slack.api.app_backend.interactive_components.payload.BlockActionPayload;
 import com.slack.api.bolt.context.builtin.ActionContext;
 import com.slack.api.bolt.handler.builtin.BlockActionHandler;
@@ -61,7 +61,7 @@ public class RegenerateHandler implements BlockActionHandler {
         String ts = payload.getMessage().getTs();
         String tsThread = payload.getMessage().getThreadTs();
         String channelId = payload.getChannel().getId();
-
+        String userId = payload.getUser().getId();
         ConversationsRepliesResponse repliesResponse = ctx.client().conversationsReplies(ConversationsRepliesRequest.builder()
                 .channel(channelId)
                 .ts(tsThread)
@@ -84,6 +84,7 @@ public class RegenerateHandler implements BlockActionHandler {
                             channelId,
                             tsThread,
                             lastMessageText,
+                            userId,
                             ctx
                     );
                     for (String textMessage : gptResponseText) {

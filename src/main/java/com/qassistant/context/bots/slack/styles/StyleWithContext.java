@@ -1,4 +1,4 @@
-package com.qassistant.context.services.slack.styles;
+package com.qassistant.context.bots.slack.styles;
 
 
 public enum StyleWithContext {

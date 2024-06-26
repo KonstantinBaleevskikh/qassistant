@@ -1,5 +1,6 @@
-package com.qassistant.context.services.slack.blocks;
+package com.qassistant.context.bots.slack.blocks;
 
+import com.qassistant.context.bots.slack.SlackCommand;
 import com.slack.api.model.block.Blocks;
 import com.slack.api.model.block.LayoutBlock;
 import com.slack.api.model.block.composition.BlockCompositions;
@@ -10,8 +11,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-import static com.qassistant.context.services.slack.SlackCommand.*;
-
 
 @Component
 public class AnswerBlock {
@@ -19,15 +18,15 @@ public class AnswerBlock {
     public List<LayoutBlock> createAiMessage(String text) {
         BlockElement regenerateButton = ButtonElement.builder()
                 .text(PlainTextObject.builder().text("Regenerate").build())
-                .actionId(regenerate.name())
+                .actionId(SlackCommand.regenerate.name())
                 .build();
         BlockElement thumbsUpButton = ButtonElement.builder()
                 .text(PlainTextObject.builder().text("👍").build())
-                .actionId(thumbs_up.name())
+                .actionId(SlackCommand.thumbs_up.name())
                 .build();
         BlockElement thumbsDownButton = ButtonElement.builder()
                 .text(PlainTextObject.builder().text("👎").build())
-                .actionId(thumbs_down.name())
+                .actionId(SlackCommand.thumbs_down.name())
                 .build();
         List<BlockElement> blockElements = List.of(regenerateButton, thumbsUpButton, thumbsDownButton);
         return Blocks.asBlocks(

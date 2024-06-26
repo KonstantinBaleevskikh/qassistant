@@ -1,9 +1,9 @@
-package com.qassistant.context.services.slack;
+package com.qassistant.context.bots.slack;
 
-
-import com.qassistant.context.configs.SlackConfig;
-import com.qassistant.context.services.slack.events.MessageToBotHandler;
-import com.qassistant.context.services.slack.events.RegenerateHandler;
+import com.qassistant.context.bots.configs.ProjectConfig;
+import com.qassistant.context.bots.configs.SlackConfig;
+import com.qassistant.context.bots.slack.events.MessageToBotHandler;
+import com.qassistant.context.bots.slack.events.RegenerateHandler;
 import com.slack.api.bolt.App;
 import com.slack.api.bolt.AppConfig;
 import com.slack.api.bolt.socket_mode.SocketModeApp;
@@ -15,22 +15,21 @@ import io.micrometer.core.instrument.Metrics;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
-import java.util.logging.Logger;
 
-@Component
+@Service
 @ConditionalOnExpression("'${application.bot}'.contains('slack')")
 public class SlackBot {
     private final SlackConfig slackConfig;
     private final Counter successCounter;
     private final Counter failureCounter;
-    Logger log = Logger.getLogger(SlackBot.class.getName());
+    private final ProjectConfig projectConfig;
 
-    public SlackBot(SlackConfig slackConfig, Environment environment) {
+    public SlackBot(SlackConfig slackConfig, Environment environment, ProjectConfig projectConfig) {
         this.slackConfig = slackConfig;
+        this.projectConfig = projectConfig;
         String activeProfile = Arrays.stream(environment.getActiveProfiles()).findFirst().orElse("default");
         this.successCounter = Metrics.counter(
                 "success_counter",
@@ -74,6 +73,14 @@ public class SlackBot {
             successCounter.increment();
             return ctx.ack();
         });
+
+        app.command("/setproject", (req, ctx) -> {
+            String projectId = req.getPayload().getText();
+            String userId = req.getPayload().getUserId();// Get the user ID from the payload
+            projectConfig.setProjectForUser(userId, projectId); // Set the project for the user
+            return ctx.ack("Project set to: " + projectId);
+        });
+
         SocketModeApp socketModeApp = new SocketModeApp(slackConfig.getAppToken(), app);
         socketModeApp.startAsync();
         return socketModeApp;

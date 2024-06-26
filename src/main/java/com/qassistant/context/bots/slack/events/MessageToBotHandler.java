@@ -1,7 +1,7 @@
-package com.qassistant.context.services.slack.events;
+package com.qassistant.context.bots.slack.events;
 
-import com.qassistant.context.services.slack.actions.AiAction;
-import com.qassistant.context.services.slack.blocks.AnswerBlock;
+import com.qassistant.context.bots.slack.blocks.AnswerBlock;
+import com.qassistant.context.bots.slack.actions.AiAction;
 import com.slack.api.app_backend.events.payload.EventsApiPayload;
 import com.slack.api.bolt.context.builtin.EventContext;
 import com.slack.api.bolt.handler.BoltEventHandler;
@@ -39,6 +39,7 @@ public class MessageToBotHandler implements BoltEventHandler<MessageEvent> {
         MessageEvent event = payload.getEvent();
         if ("im".equals(event.getChannelType())) {
             String text = event.getText();
+            String userId = event.getUser();
             CompletableFuture.runAsync(() -> {
                 try {
                     boolean newMessage = event.getThreadTs() == null;
@@ -53,6 +54,7 @@ public class MessageToBotHandler implements BoltEventHandler<MessageEvent> {
                             event.getChannel(),
                             newMessage ? event.getTs() : event.getThreadTs(),
                             text,
+                            userId,
                             ctx
                     );
                     for (String textMessage : gptResponseText) {
